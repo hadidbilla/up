@@ -64,21 +64,6 @@ const handleSelectChange = (value) => {
   emits('change', value, props.options[0].label)
 }
 
-const handleSetFilterOptions = () => {
-  const queryParams = router.currentRoute.value.query;
 
-  if (queryParams.from) {
-    selected.value = queryParams.from;
-  }
-  if (queryParams.to) {
-    selected.value = queryParams.to;
-  }
-  if (queryParams.call_id) {
-    selected.value = queryParams.call_id;
-  }
-}
 
-onMounted(() => {
-  handleSetFilterOptions();
-})
 </script>

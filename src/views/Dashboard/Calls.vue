@@ -15,7 +15,7 @@
       </div> -->
 
     </div>
-    <div class="flex gap-4 w-full">
+    <div class="flex gap-4 w-full" v-if="!loading">
       <div v-for="(option, key) in filterOptions" :key="key" class="w-full">
         <SelectMenus :options="option.options"  :value="option.selected" @change="handleSelectChange" />
       </div>
@@ -178,14 +178,14 @@
         </div>
       </div>
     </div>
-    <CustomPagination :totalPages="calls.total" @changePage="changePage" :currentPage="currentPage" />
+    <CustomPagination :totalPages="getTotalPages" @changePage="changePage" :currentPage="currentPage" />
     <DeleteModal :isShowDeleteModal="isShowDeleteModal" @handleCloseDeleteModal="handleCloseDeleteModal" @handleDelete="handleDelete" />
   </div>
 </template>
 
 <script setup>
 import { storeToRefs } from 'pinia'
-import {onMounted, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import { useCallsStore } from '../../stores/CallsStore'
 const callsStore = useCallsStore()
 const { loading, calls } = storeToRefs(callsStore)
@@ -215,7 +215,7 @@ const filterOptions = ref({
   call_id: {
     options: [
       { label: 'Call ID', value: '' },
-      { label: 'call_63d684525aa041.90474705', value: 'call_63d684525aa041.90474705' },
+      { label: 'call_6486ceb01337e0.13116668', value: 'call_6486ceb01337e0.13116668' },
     ],
     selected: '',
   },
@@ -279,8 +279,15 @@ const handleDelete = async () => {
     if (deleteId.value) {
       await callsStore.delete_call(deleteId.value);
       handleCloseDeleteModal();
-      const pageFromQuery = parseInt(router.currentRoute.value.query.page || 1);
-     await handleGetCalls(pageFromQuery);
+      const pageFromQuery = handleFormQueryParams();
+      //add the page number to the query params
+      let newQuery = ""
+      if (!router.currentRoute.value.query.page) {
+       newQuery = pageFromQuery ? `${pageFromQuery}&page=1` : '?page=1';
+      } else {
+        newQuery = pageFromQuery;
+      }
+     await handleGetCalls(newQuery);
     }
   } catch (e) {
     console.log(e);
@@ -304,6 +311,13 @@ const changePage = async (newPage)=> {
   const newQuery = handleFormQueryParams();
   await handleGetCalls(newQuery);
 }
+
+//get total pages
+const getTotalPages = computed(() => {
+  let page = calls.value.total / calls.value.per_page;
+  page = Math.ceil(page);
+  return page > 0 ? page : 1;
+});
 
 const handleGetCalls = async (queryParamsList) => {
   await callsStore.get_calls(queryParamsList);
@@ -334,6 +348,19 @@ if (queryParams.page) {
   return queryParamsList.length > 0 ? `?${queryParamsList.join('&')}` : '';
 };
 
+const handleSetFilterOptions = () => {
+  const queryParams = router.currentRoute.value.query;
+  if (queryParams.from) {
+    filterOptions.value.form.selected = queryParams.from;
+  }
+  if (queryParams.to) {
+    filterOptions.value.to.selected = queryParams.to;
+  }
+  if (queryParams.call_id) {
+    filterOptions.value.call_id.selected = queryParams.call_id;
+  }
+};
+
 onMounted( () => {
 
   let queryParamsList = handleFormQueryParams();
@@ -342,6 +369,7 @@ onMounted( () => {
   if (!router.currentRoute.value.query.page) {
     queryParamsList = queryParamsList ? `${queryParamsList}&page=1` : '?page=1';
   }
+  handleSetFilterOptions();
   handleGetCalls(queryParamsList);
 });
 </script>
