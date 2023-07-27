@@ -15,9 +15,9 @@
       </div> -->
 
     </div>
-    <div class="flex gap-4 w-full" v-if="!loading">
+    <div class="flex gap-4 w-full" >
       <div v-for="(option, key) in filterOptions" :key="key" class="w-full">
-        <SelectMenus :options="option.options"  :value="option.selected" @change="handleSelectChange" />
+        <SelectMenus v-model="option.selected" :options="option.options" @modelValueUpdated="handleSelectChange" />
       </div>
     </div>
     <div class="mt-8 flow-root">
@@ -88,7 +88,7 @@
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody v-if="!loading && (calls?.data?.length > 0)">
               <tr v-for="(call, index) in calls.data" :key="call.call_id">
                 <td
                   :class="[
@@ -173,12 +173,19 @@
                   >
                 </td>
               </tr>
+            </tbody >
+            <tbody v-else>
+              <tr>
+                <td colspan="10" class="text-center py-4 text-sm font-medium text-gray-900">
+                  No calls found
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-    <CustomPagination :totalPages="getTotalPages" @changePage="changePage" :currentPage="currentPage" />
+    <CustomPagination :totalPages="getTotalPages" @changePage="changePage" :currentPage="currentPage" v-if="(calls?.data?.length > 0) && !loading" />
     <DeleteModal :isShowDeleteModal="isShowDeleteModal" @handleCloseDeleteModal="handleCloseDeleteModal" @handleDelete="handleDelete" />
   </div>
 </template>
@@ -224,43 +231,31 @@ const filterOptions = ref({
 // Get the current query parameter for the page number
 const currentPage = ref(parseInt(router.currentRoute.value.query.page) || 1);
 
-const handleSelectChange =async (value, key) => {
+const handleSelectChange = async (value, key) => {
   const query = { ...router.currentRoute.value.query };
-  if (key.toLowerCase() === 'from') {
+  const keyMap = { 'from': 'from', 'to': 'to', 'Call ID': 'call_id' };
+
+  const queryKey = keyMap[key.toLowerCase()];
+  if (queryKey) {
     if (value) {
-      query.from = value;
-      await router.push({ query });
+      query[queryKey] = value;
     } else {
-      delete query.from;
-     await router.push({ query });
-    }
-  } else if (key.toLowerCase() === 'to') {
-    if (value) {
-      query.to = value;
-     await router.push({ query });
-    } else {
-      delete query.to;
-    await  router.push({ query });
-    }
-  } else if (key === 'Call ID') {
-    if (value) {
-      query.call_id = value;
-     await router.push({ query });
-    } else {
-      delete query.call_id;
-     await router.push({ query });
+      delete query[queryKey];
     }
   }
 
-  //set the current page to 1
+  // Reset the page number
   currentPage.value = 1;
   query.page = currentPage.value;
+
+  // Update the URL with the new query parameters
   await router.push({ query });
 
   const newQuery = handleFormQueryParams();
   console.log(newQuery);
- await handleGetCalls(newQuery);
+  await handleGetCalls(newQuery);
 };
+
 
 const handleShowDeleteModal = (id) => {
   console.log(id)
@@ -301,7 +296,7 @@ const changePage = async (newPage)=> {
   console.log(newPage)
   currentPage.value = newPage
   const query = { ...router.currentRoute.value.query };
-  if (newPage > 1) {
+  if (newPage > 0) {
     query.page = newPage;
     await router.push({ query });
   } else {
